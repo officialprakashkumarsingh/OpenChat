@@ -23,6 +23,10 @@
 
 # env files (can opt-in for committing if needed)
 .env
+.env.local
+
+# Actual environment values (keep local only)
+my-actual-environment-values.txt
 
 # vercel
 .vercel

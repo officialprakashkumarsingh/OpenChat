@@ -1,0 +1,95 @@
+# OpenChat Environment Variables Reference
+# Template for setting up environment variables in Vercel deployment
+
+## Required Environment Variables
+
+### Search API Keys
+BRAVE_API_KEY=your_brave_search_api_key
+TAVILY_API_KEY=your_tavily_search_api_key  
+EXA_API_KEY=your_exa_search_api_key
+
+### Google OAuth Authentication
+AUTH_GOOGLE_ID=your_google_oauth_client_id
+AUTH_GOOGLE_SECRET=your_google_oauth_client_secret
+
+### Convex Backend Configuration
+NEXT_PUBLIC_CONVEX_URL=your_convex_deployment_url
+CONVEX_DEPLOYMENT=your_convex_deployment_string
+
+## Optional Environment Variables
+
+### Tool Integrations (Composio)
+COMPOSIO_API_KEY=your_composio_api_key
+
+### Caching (Upstash Redis)
+UPSTASH_REDIS_REST_URL=your_upstash_redis_url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
+
+### Analytics (PostHog)
+NEXT_PUBLIC_POSTHOG_KEY=your_posthog_project_key
+NEXT_PUBLIC_POSTHOG_HOST=your_posthog_host
+
+### Site Configuration
+NEXT_PUBLIC_BASE_URL=your_production_site_url
+
+### Additional LLM Provider Keys (Optional)
+MISTRAL_API_KEY=your_mistral_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENAI_API_KEY=your_openai_api_key
+GOOGLE_GENERATIVE_AI_API_KEY=your_google_ai_api_key
+GROQ_API_KEY=your_groq_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+XAI_API_KEY=your_xai_api_key
+NIM_API_KEY=your_nvidia_nim_api_key
+FAL_API_KEY=your_fal_api_key
+
+## Deployment Instructions
+
+1. **Go to Vercel Dashboard:**
+   - Navigate to your project settings
+   - Find "Environment Variables" section
+
+2. **Add Required Variables:**
+   - Copy each variable name (left side of =)
+   - Add your actual values (not the placeholders shown here)
+   - Set environment to "All" (Production, Preview, Development)
+
+3. **Redeploy Application:**
+   - Go to Deployments tab
+   - Click "Redeploy" on latest deployment
+
+## Variable Sources
+
+### Search API Keys:
+- Brave: https://api.search.brave.com/
+- Tavily: https://tavily.com/
+- Exa: https://exa.ai/
+
+### Google OAuth:
+- Google Cloud Console: https://console.cloud.google.com/apis/credentials
+
+### Convex:
+- Convex Dashboard: https://dashboard.convex.dev/
+
+### Composio (Optional):
+- Composio Dashboard: https://app.composio.dev/
+
+## Current Configuration Status
+
+✅ **Required for Core Functionality:**
+- Search API keys configured
+- Google OAuth configured  
+- Convex backend configured
+
+⚠️ **Optional Enhancements:**
+- Composio (for tool integrations)
+- PostHog (for analytics)
+- Upstash (for caching)
+- Additional LLM providers
+
+## Security Notes
+
+- Never commit actual API keys to version control
+- Use environment variables in deployment platform
+- Rotate keys regularly for security
+- Use different keys for development/production environments
