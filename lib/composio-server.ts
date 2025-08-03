@@ -23,7 +23,7 @@ interface CachedInputSchema {
 const apiKey = process.env.COMPOSIO_API_KEY;
 
 // Initialize composio only if API key is available
-let composio: Composio | null = null;
+let composio: Composio<VercelProvider> | null = null;
 if (apiKey) {
   composio = new Composio({
     apiKey,
