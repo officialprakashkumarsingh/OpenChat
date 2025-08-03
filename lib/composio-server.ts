@@ -54,6 +54,11 @@ const addExecuteFunctionsToCache = (
         ...tool,
         inputSchema: reconstructedInputSchema,
         execute: async (input) => {
+          // Return error if Composio is not available
+          if (!composio) {
+            throw new Error('Composio API key not configured');
+          }
+          
           // Call Composio API to execute the tool with correct signature
           const result = await composio.tools.execute(toolName, {
             userId,
@@ -77,6 +82,10 @@ export const initiateConnection = async (
   connectorType: ConnectorType,
   callbackUrl?: string
 ): Promise<{ redirectUrl: string; connectionRequestId: string }> => {
+  if (!composio) {
+    throw new Error('Composio API key not configured');
+  }
+  
   const authConfigId = getAuthConfigId(connectorType);
 
   // First, check if user has existing connections for this toolkit and clean them up
@@ -157,7 +166,7 @@ export const getComposioTools = async (
   userId: string,
   toolkitSlugs: string[]
 ) => {
-  if (!toolkitSlugs.length) {
+  if (!toolkitSlugs.length || !composio) {
     return {};
   }
 
@@ -243,6 +252,11 @@ export const validateEnvironment = (): {
  */
 export const refreshCache = async (userId: string): Promise<void> => {
   try {
+    // Return early if Composio is not available
+    if (!composio) {
+      return;
+    }
+
     // Invalidate tools cache first
     await invalidateUserToolsCache(userId);
 
