@@ -128,6 +128,10 @@ export const waitForConnection = async (
   timeoutSeconds = 300,
   userId?: string
 ): Promise<{ connectionId: string; isConnected: boolean }> => {
+  if (!composio) {
+    throw new Error('Composio API key not configured');
+  }
+  
   const connectedAccount = await composio.connectedAccounts.waitForConnection(
     connectionRequestId,
     timeoutSeconds * 1000 // Convert seconds to milliseconds
@@ -153,6 +157,10 @@ export const disconnectAccount = async (
   connectionId: string,
   userId: string
 ): Promise<void> => {
+  if (!composio) {
+    throw new Error('Composio API key not configured');
+  }
+  
   await composio.connectedAccounts.delete(connectionId);
 
   // Refresh caches since connected accounts have changed
