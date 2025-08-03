@@ -21,14 +21,15 @@ interface CachedInputSchema {
 
 // Server-side Composio client initialization (following official example)
 const apiKey = process.env.COMPOSIO_API_KEY;
-if (!apiKey) {
-  throw new Error('COMPOSIO_API_KEY environment variable is not set');
-}
 
-const composio = new Composio({
-  apiKey,
-  provider: new VercelProvider(),
-});
+// Initialize composio only if API key is available
+let composio: Composio | null = null;
+if (apiKey) {
+  composio = new Composio({
+    apiKey,
+    provider: new VercelProvider(),
+  });
+}
 
 /**
  * Add execute functions back to cached tools
