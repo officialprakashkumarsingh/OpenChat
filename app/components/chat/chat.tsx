@@ -333,10 +333,7 @@ export default function Chat() {
       }
 
       try {
-        await sendMessage({
-          message: inputMessage,
-          body,
-        });
+        await sendMessage({ text: inputMessage }, { body });
       } catch (e) {
         // Error handling is managed in onError callback
       }
