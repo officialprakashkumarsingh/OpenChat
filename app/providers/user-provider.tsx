@@ -10,6 +10,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import { api } from '../../convex/_generated/api';
 import type { Doc, Id } from '../../convex/_generated/dataModel';
@@ -74,6 +75,43 @@ export function UserProvider({
   children: React.ReactNode;
   initialUser?: null;
 }) {
+  // Bypass mode: run app without Convex backend and return safe defaults
+  const isConvexConfigured = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
+  const [isBypass, setIsBypass] = useState(!isConvexConfigured);
+
+  useEffect(() => {
+    if (!isConvexConfigured) return;
+    try {
+      const bypass = window.localStorage.getItem('oc_bypass_backend') === '1';
+      if (bypass) setIsBypass(true);
+    } catch {}
+  }, [isConvexConfigured]);
+
+  if (isBypass) {
+    const emptyMap = new Map<string, boolean>();
+    const contextValue: UserContextType = {
+      user: null,
+      isLoading: false,
+      signInGoogle: async () => {},
+      signOut: async () => {},
+      updateUser: async () => {},
+      hasPremium: false,
+      products: undefined,
+      rateLimitStatus: undefined,
+      apiKeys: [],
+      hasApiKey: emptyMap,
+      hasOpenAI: false,
+      hasAnthropic: false,
+      hasGemini: false,
+      isApiKeysLoading: false,
+      connectors: [],
+      isConnectorsLoading: false,
+    };
+    return (
+      <UserContext.Provider value={contextValue}>{children}</UserContext.Provider>
+    );
+  }
+
   const { isAuthenticated } = useConvexAuth(); // isLoading will always be false here
   const { signIn, signOut } = useAuthActions();
   const { data: user = null, isLoading: isUserLoading } = useTanStackQuery({

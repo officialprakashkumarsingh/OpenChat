@@ -81,7 +81,14 @@ export function AuthGuard({ children }: AuthGuardProps) {
                   : 'Backend not configured (NEXT_PUBLIC_CONVEX_URL missing). Running in limited mode.'}
               </p>
             </div>
-            {children}
+            <UserProvider>
+              <CSPostHogProvider>
+                <ChatSessionProvider>
+                  <Toaster position="top-center" />
+                  {children}
+                </ChatSessionProvider>
+              </CSPostHogProvider>
+            </UserProvider>
           </div>
         </div>
       </ThemeProvider>
