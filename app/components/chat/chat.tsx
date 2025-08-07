@@ -314,17 +314,22 @@ export default function Chat() {
       }
 
       // Validate input before sending to server
-      const inputValidation = validateInput(inputMessage);
-      if (!inputValidation.ok) {
-        toast({ title: inputValidation.message, status: 'error' });
+      if (
+        !validateInput(
+          inputMessage,
+          hasFiles ? files.length : 0,
+          (user as any)?._id || 'guest'
+        )
+      ) {
         return;
       }
 
       // Validate search query if enabled
-      const queryValidation = validateSearchQuery(inputMessage, options);
-      if (!queryValidation.ok) {
-        toast({ title: queryValidation.message, status: 'error' });
-        return;
+      if (options?.enableSearch) {
+        const trimmed = validateSearchQuery(inputMessage);
+        if (!trimmed) {
+          return;
+        }
       }
 
       try {
