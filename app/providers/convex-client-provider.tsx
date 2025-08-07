@@ -9,19 +9,19 @@ import { useState } from 'react';
 // Validate environment variable early for clearer error messaging
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
 
-if (!convexUrl) {
-  throw new Error(
-    'Environment variable NEXT_PUBLIC_CONVEX_URL is missing. Please set it in your environment to the URL of your Convex deployment.'
-  );
-}
-
-const client = new ConvexReactClient(convexUrl);
+// Make Convex optional: if no URL, skip Convex provider entirely
+const client = convexUrl ? new ConvexReactClient(convexUrl) : null;
 
 export function ConvexClientProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // If Convex is not configured, render children directly (limited functionality)
+  if (!client) {
+    return <>{children}</>;
+  }
+
   const [queryClient] = useState(() => {
     const convexQueryClient = new ConvexQueryClient(client);
 

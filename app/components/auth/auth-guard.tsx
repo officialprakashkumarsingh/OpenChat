@@ -17,7 +17,10 @@ interface AuthGuardProps {
 export function AuthGuard({ children }: AuthGuardProps) {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [loadingTime, setLoadingTime] = useState(0);
-  const [forceBypass, setForceBypass] = useState(false);
+  // Auto-bypass when Convex URL is not configured
+  const [forceBypass, setForceBypass] = useState(
+    !process.env.NEXT_PUBLIC_CONVEX_URL
+  );
 
   // Show debug info after 10 seconds of loading
   useEffect(() => {
@@ -42,7 +45,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
             <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4">
               <h2 className="font-semibold text-yellow-800">Connection Issue Detected</h2>
               <p className="text-sm text-yellow-700 mt-1">
-                Unable to connect to backend. Some features may not work properly.
+                {process.env.NEXT_PUBLIC_CONVEX_URL
+                  ? 'Unable to connect to backend. Some features may not work properly.'
+                  : 'Backend not configured (NEXT_PUBLIC_CONVEX_URL missing). Running in limited mode.'}
               </p>
             </div>
             {children}
