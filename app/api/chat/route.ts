@@ -458,23 +458,23 @@ export async function POST(req: Request) {
     }
 
     const token = await convexAuthNextjsToken();
-
-    // Get current user first (needed for multiple operations below)
-    const user = await fetchQuery(api.users.getCurrentUser, {}, { token });
+    const hasToken = Boolean(token);
+    // Get current user only when token exists
+    const user = hasToken
+      ? await fetchQuery(api.users.getCurrentUser, {}, { token })
+      : null;
 
     // --- Optimized Parallel Database Queries ---
     // Run independent queries in parallel to reduce latency
     const [userKeys, isUserPremiumForPremiumModels, composioTools] =
       await Promise.all([
         // Get user API keys if model allows user keys
-        selectedModel.apiKeyUsage?.allowUserKey
+        selectedModel.apiKeyUsage?.allowUserKey && hasToken
           ? fetchQuery(api.api_keys.getApiKeys, {}, { token }).catch(() => [])
           : Promise.resolve([]),
         // Check premium status for premium models (only if needed)
-        selectedModel.premium
-          ? fetchQuery(api.users.userHasPremium, {}, { token }).catch(
-              () => false
-            )
+        selectedModel.premium && hasToken
+          ? fetchQuery(api.users.userHasPremium, {}, { token }).catch(() => false)
           : Promise.resolve(false),
         // Get Composio tools for connected accounts (only if model supports tool calling)
         (async () => {
@@ -489,7 +489,7 @@ export async function POST(req: Request) {
             }
 
             // Use frontend-provided tool slugs (frontend is source of truth)
-            if (enabledToolSlugs && enabledToolSlugs.length > 0) {
+            if (enabledToolSlugs && enabledToolSlugs.length > 0 && hasToken && user) {
               return await getComposioTools(user._id, enabledToolSlugs);
             }
 
@@ -509,7 +509,7 @@ export async function POST(req: Request) {
     let userApiKey: string | null = null;
     let keyEntry: { provider: string; mode?: string } | undefined;
 
-    if (apiKeyUsage?.allowUserKey && Array.isArray(userKeys)) {
+    if (hasToken && apiKeyUsage?.allowUserKey && Array.isArray(userKeys)) {
       try {
         keyEntry = userKeys.find((k) => k.provider === selectedModel.provider);
         if (keyEntry) {
@@ -543,11 +543,10 @@ export async function POST(req: Request) {
     }
 
     // --- Premium Model Access Check ---
-    // Only applies if user is NOT using their own API key
+    // Guests cannot access premium models
     if (
-      selectedModel.premium &&
-      !useUserKey &&
-      !isUserPremiumForPremiumModels
+      (selectedModel.premium && !useUserKey && !isUserPremiumForPremiumModels) ||
+      (!hasToken && selectedModel.premium)
     ) {
       // Save user message first
       const userMsgId = await saveUserMessage(
@@ -561,7 +560,7 @@ export async function POST(req: Request) {
       const premiumError = new Error('PREMIUM_MODEL_ACCESS_DENIED');
 
       // Save error message to conversation
-      if (token) {
+      if (hasToken && token) {
         await saveErrorMessage(
           chatId,
           userMsgId,
@@ -581,7 +580,7 @@ export async function POST(req: Request) {
     // --- Rate Limiting (only if not using user key and model doesn't skip rate limits) ---
     let rateLimitError: Error | null = null;
 
-    if (!(useUserKey || selectedModel.skipRateLimit)) {
+    if (hasToken && !(useUserKey || selectedModel.skipRateLimit)) {
       try {
         // Check if the selected model uses premium credits
         const usesPremiumCredits = selectedModel.usesPremiumCredits === true;
@@ -621,7 +620,7 @@ export async function POST(req: Request) {
       );
 
       // Save error message to conversation
-      if (token) {
+      if (hasToken && token) {
         await saveErrorMessage(
           chatId,
           userMsgId,
@@ -658,6 +657,10 @@ export async function POST(req: Request) {
 
     // Handle image generation models differently
     if (isImageGenerationModel) {
+      // Guests cannot use image generation
+      if (!hasToken) {
+        return createErrorResponse(new Error('Authentication required for image generation'));
+      }
       // Image generation always uses built-in API key, no user key support
       return handleImageGeneration({
         messages,
@@ -673,17 +676,21 @@ export async function POST(req: Request) {
     // --- Reload Logic (Delete and Recreate) ---
     let userMsgId: Id<'messages'> | null = null;
     if (reloadAssistantMessageId) {
-      const details = await fetchQuery(
-        api.messages.getMessageDetails,
-        { messageId: reloadAssistantMessageId },
-        { token }
-      );
+      const details = hasToken
+        ? await fetchQuery(
+          api.messages.getMessageDetails,
+          { messageId: reloadAssistantMessageId },
+          { token }
+        )
+        : null;
       userMsgId = details?.parentMessageId ?? null;
-      await fetchMutation(
-        api.messages.deleteMessageAndDescendants,
-        { messageId: reloadAssistantMessageId },
-        { token }
-      );
+      if (hasToken) {
+        await fetchMutation(
+          api.messages.deleteMessageAndDescendants,
+          { messageId: reloadAssistantMessageId },
+          { token }
+        );
+      }
     }
 
     // --- Insert User Message (if not a reload) ---
@@ -691,7 +698,7 @@ export async function POST(req: Request) {
       userMsgId = await saveUserMessage(
         messages,
         chatId,
-        token,
+        hasToken ? token : undefined,
         reloadAssistantMessageId
       );
     }
@@ -835,7 +842,7 @@ export async function POST(req: Request) {
         result = createStreamTextCall(primaryIsUserKey);
       } catch (primaryError) {
         // Save conversation errors as messages
-        if (shouldShowInConversation(primaryError) && token) {
+        if (shouldShowInConversation(primaryError) && hasToken && token) {
           await saveErrorMessage(
             chatId,
             userMsgId,
@@ -858,7 +865,7 @@ export async function POST(req: Request) {
             result = createStreamTextCall(fallbackIsUserKey);
           } catch (fallbackError) {
             // Save conversation errors as messages for fallback error too
-            if (shouldShowInConversation(fallbackError) && token) {
+            if (shouldShowInConversation(fallbackError) && hasToken && token) {
               await saveErrorMessage(
                 chatId,
                 userMsgId,
@@ -882,7 +889,7 @@ export async function POST(req: Request) {
         result = createStreamTextCall(false);
       } catch (streamError) {
         // Save conversation errors as messages
-        if (shouldShowInConversation(streamError) && token) {
+        if (shouldShowInConversation(streamError) && hasToken && token) {
           await saveErrorMessage(
             chatId,
             userMsgId,
@@ -932,7 +939,8 @@ export async function POST(req: Request) {
           14
         );
 
-        await fetchMutation(
+        if (hasToken) {
+          await fetchMutation(
           api.messages.saveAssistantMessage,
           {
             chatId,
@@ -960,6 +968,7 @@ export async function POST(req: Request) {
             { usesPremiumCredits },
             { token }
           );
+        }
         }
       },
       consumeSseStream: consumeStream,

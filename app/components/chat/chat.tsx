@@ -82,6 +82,15 @@ export default function Chat() {
   // Initialize utilities
   const getValidModel = useMemo(() => createModelValidator(), []);
   const _convex = useConvex();
+  // Guest session support: temporary chat id when unauthenticated
+  const guestChatIdRef = useRef<string | null>(null);
+  const getOrCreateGuestChatId = useCallback(() => {
+    if (!guestChatIdRef.current) {
+      const rand = Math.random().toString(36).slice(2, 10);
+      guestChatIdRef.current = `guest_${Date.now()}_${rand}`;
+    }
+    return guestChatIdRef.current;
+  }, []);
 
   // Get enabled tool slugs from connected integrations
   const enabledToolSlugs = useMemo(() => {
@@ -130,17 +139,21 @@ export default function Chat() {
   const { data: messagesFromDB } = useTanStackQuery({
     ...convexQuery(
       api.messages.getMessagesForChat,
-      chatId ? { chatId: chatId as Id<'chats'> } : 'skip'
+      chatId && isUserAuthenticated(user)
+        ? { chatId: chatId as Id<'chats'> }
+        : 'skip'
     ),
-    enabled: !!chatId,
+    enabled: !!chatId && isUserAuthenticated(user),
   });
 
   const { data: currentChat } = useTanStackQuery({
     ...convexQuery(
       api.chats.getChat,
-      chatId ? { chatId: chatId as Id<'chats'> } : 'skip'
+      chatId && isUserAuthenticated(user)
+        ? { chatId: chatId as Id<'chats'> }
+        : 'skip'
     ),
-    enabled: !!chatId,
+    enabled: !!chatId && isUserAuthenticated(user),
   });
 
   // Derived state
@@ -250,7 +263,7 @@ export default function Chat() {
       currentChatId?: string,
       options?: { enableSearch?: boolean }
     ) => {
-      const chatIdToUse = currentChatId || chatId;
+      const chatIdToUse = currentChatId || chatId || getOrCreateGuestChatId();
       if (!chatIdToUse) {
         return;
       }
@@ -300,29 +313,42 @@ export default function Chat() {
         }
       }
 
-      // Send message with AI SDK
-      try {
-        const messageParts = [
-          { type: 'text' as const, text: inputMessage },
-          ...(attachments || []),
-        ];
+      // Validate input before sending to server
+      const inputValidation = validateInput(inputMessage);
+      if (!inputValidation.ok) {
+        toast({ title: inputValidation.message, status: 'error' });
+        return;
+      }
 
-        await sendMessage({ parts: messageParts, role: 'user' }, { body });
-      } catch {
-        toast({ title: 'Failed to send message', status: 'error' });
+      // Validate search query if enabled
+      const queryValidation = validateSearchQuery(inputMessage, options);
+      if (!queryValidation.ok) {
+        toast({ title: queryValidation.message, status: 'error' });
+        return;
+      }
+
+      try {
+        await sendMessage({
+          message: inputMessage,
+          body,
+        });
+      } catch (e) {
+        // Error handling is managed in onError callback
       }
     },
     [
       chatId,
+      getOrCreateGuestChatId,
       selectedModel,
       personaId,
       reasoningEffort,
+      enabledToolSlugs,
       hasFiles,
       createOptimisticFiles,
       processFiles,
-      sendMessage,
       setMessages,
-      enabledToolSlugs,
+      validateSearchQuery,
+      sendMessage,
     ]
   );
 
