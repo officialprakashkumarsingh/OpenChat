@@ -14,6 +14,14 @@ interface AuthGuardProps {
   children: React.ReactNode;
 }
 
+function AutoBypassOnTimeout({ onTimeout, ms }: { onTimeout: () => void; ms: number }) {
+  useEffect(() => {
+    const id = setTimeout(onTimeout, ms);
+    return () => clearTimeout(id);
+  }, [onTimeout, ms]);
+  return null;
+}
+
 export function AuthGuard({ children }: AuthGuardProps) {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [loadingTime, setLoadingTime] = useState(0);
@@ -64,6 +72,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
         <div className="flex h-dvh items-center justify-center bg-background">
           <div className="flex flex-col items-center space-y-4">
             <Loader size="lg" variant="dots" />
+            {/* Auto-bypass after 20s only if still loading */}
+            <AutoBypassOnTimeout ms={20000} onTimeout={() => setForceBypass(true)} />
             {showDebugInfo && (
               <div className="text-center space-y-2 max-w-md px-4">
                 <p className="text-sm text-muted-foreground">
